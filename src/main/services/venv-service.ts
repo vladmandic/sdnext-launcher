@@ -2,10 +2,27 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+/**
+ * Get the path to Python executable in a virtual environment
+ * @param installationPath Path to the installation directory
+ * @returns Path to venv python executable
+ */
 export function getVenvPythonPath(installationPath: string): string {
-  return path.join(installationPath, 'venv', 'Scripts', 'python.exe');
+  // Windows: venv/Scripts/python.exe, Unix: venv/bin/python
+  if (process.platform === 'win32') {
+    return path.join(installationPath, 'venv', 'Scripts', 'python.exe');
+  }
+  return path.join(installationPath, 'venv', 'bin', 'python');
 }
 
+/**
+ * Ensure a virtual environment exists, creating one if necessary
+ * @param installationPath Path to the installation directory
+ * @param portablePythonPath Path to the portable Python executable
+ * @param onOutput Callback for output messages
+ * @returns Path to venv python executable
+ * @throws Error if venv creation fails
+ */
 export function ensureVenv(
   installationPath: string,
   portablePythonPath: string,

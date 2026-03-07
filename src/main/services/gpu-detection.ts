@@ -29,6 +29,12 @@ export function detectGPUs(): GPUDetectionResult {
   try {
     debugLog('gpu-detection', 'Starting GPU detection');
 
+    // GPU detection only works on Windows
+    if (process.platform !== 'win32') {
+      debugLog('gpu-detection', 'GPU detection not supported on non-Windows platforms');
+      return { gpus: [], recommendedBackend: 'autodetect' };
+    }
+
     const result = spawnSync('powershell', [
       '-NoProfile',
       '-ExecutionPolicy',

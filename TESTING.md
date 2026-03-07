@@ -1,8 +1,47 @@
 # SD.Next Installer - Testing Plan
 
-**Document Version**: 1.0  
-**Last Updated**: March 5, 2026  
-**Project Status**: Code-Complete — Ready for Testing
+**Document Version**: 1.3  
+**Last Updated**: March 7, 2026  
+**Project Status**: Phase 5 Complete — Advanced Features Integrated
+
+## March 7, 2026 Update
+
+### ✅ New Features to Test
+**Checkpoint Recovery**:
+- Resume installation from checkpoint after error
+- Verify all steps re-execute from correct point
+- Confirm checkpoint cleared on success
+
+**Logging & Diagnostics**:
+- Verify launcher.log created and populated
+- Check file size limits (prevent unbounded growth)
+- Confirm async queue doesn't block operations
+
+**Bootstrap Progress**:
+- Real-time file extraction count display
+- Git and Python sub-step tracking
+- Progress percentage accuracy
+
+**Theme Support**:
+- Light/dark mode auto-detection
+- Manual theme selection in advanced options
+- Terminal theme switching on change
+
+**Window State Persistence**:
+- Window size/position remembered across sessions
+- Restore to saved state on launch
+
+**Public Network Mode**:
+- `--listen` flag passed when enabled
+- Server accessible from network
+- Verify flag not set when disabled
+
+### Quality Metrics (All Passing)
+- ✅ TypeScript: 0 errors
+- ✅ ESLint: 0 errors, 0 warnings
+- ✅ Stylelint: 0 errors, 0 warnings
+- ✅ Production build: Successful
+- ✅ All requirements met (130/130)
 
 ---
 
@@ -21,7 +60,7 @@ These tests verify code correctness, style compliance, and build integrity witho
 
 ### PHASE A RESULTS — EXECUTED & PASSED ✅
 
-**Execution Date**: March 5, 2026
+**Execution Date**: March 6, 2026
 
 | Test | Command | Result | Details |
 |------|---------|--------|---------|
@@ -1119,6 +1158,82 @@ These tests require executing the application on Windows 10/11 to verify end-to-
 
 ---
 
+## B11: UI/UX Enhancements Tests
+
+### B11.1: Confirmation Modal
+
+**Objective**: Verify custom confirmation modal replaces window.confirm and functions correctly.
+
+**Steps**:
+1. In Advanced section, ensure "Wipe" checkbox is checked
+2. Click "Install" button
+3. Observe confirmation dialog appears
+
+**Expected Results**:
+- ✅ Modal overlay appears with semi-transparent background
+- ✅ Modal displays AlertTriangle icon
+- ✅ Modal shows confirmation message: "Are you sure you want to wipe the installation?"
+- ✅ Modal has "Confirm" and "Cancel" buttons
+- ✅ Clicking "Confirm" proceeds with installation
+- ✅ Clicking "Cancel" dismisses modal and stops installation
+- ✅ Clicking overlay background dismisses modal
+- ✅ Modal has smooth fade-in and slide-in animations
+- ✅ Modal appears responsive on smaller windows
+
+**Pass/Fail**: ___
+
+---
+
+### B11.2: Version Panel Display
+
+**Objective**: Verify Version panel displays git commit information correctly.
+
+**Prerequisites**: Installation completed with commit history available
+
+**Steps**:
+1. After installation completes, observe Version panel in status area
+2. Check displayed information
+
+**Expected Results**:
+- ✅ Version panel shows "Date" label with commit date (format: YYYY-MM-DD)
+- ✅ Version panel shows "Commit" label with hash
+- ✅ Commit hash is displayed in Consolas monospace font
+- ✅ Commit hash is clickable link to GitHub commits page
+- ✅ Version panel shows "Branch" label with branch name (e.g., "dev" or "master")
+- ✅ If update available, shows "Update available" indicator
+- ✅ Date and commit extracted from git metadata
+- ✅ If git data unavailable, displays "N/A" gracefully
+
+**Pass/Fail**: ___
+
+---
+
+### B11.3: Public/Network Configuration
+
+**Objective**: Verify "Public" checkbox enables network access via --listen parameter.
+
+**Steps**:
+1. In Advanced section, locate "Public" checkbox
+2. Leave unchecked and start application
+3. Monitor terminal for --listen parameter
+4. Stop application
+5. Check "Public" checkbox
+6. Start application again
+7. Monitor terminal output
+
+**Expected Results**:
+- ✅ "Public" checkbox present in Advanced section
+- ✅ When unchecked: launch command does NOT include "--listen"
+- ✅ When checked: launch command includes "--listen" parameter
+- ✅ Setting persists in sdnext.json config file
+- ✅ Application starts and listens on network interfaces (not just localhost)
+- ✅ Status panel remains unchanged
+- ✅ Both unchecked and checked states function correctly
+
+**Pass/Fail**: ___
+
+---
+
 ## Test Execution Summary
 
 ### Phase A: Code Quality Tests
@@ -1148,8 +1263,9 @@ These tests require executing the application on Windows 10/11 to verify end-to-
 | B8: Error Handling | 3 | ___ | ___ | ___ |
 | B9: Paths/Directories | 3 | ___ | ___ | ___ |
 | B10: Button States | 4 | ___ | ___ | ___ |
+| B11: UI/UX Enhancements | 3 | ___ | ___ | ___ |
 
-**Phase B Overall**: ___ / 42 tests passed
+**Phase B Overall**: ___ / 45 tests passed
 
 ---
 

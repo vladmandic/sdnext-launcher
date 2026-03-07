@@ -61,20 +61,32 @@ export function getBundledPythonZipPath(): string {
   return path.join(getPortableBaseDir(), 'python-3.13.12.zip');
 }
 
+function getExecutableExtension(): string {
+  return process.platform === 'win32' ? '.exe' : '';
+}
+
 export function getPrimaryGitExecutablePath(): string {
-  return path.join(getDefaultBinaryPath(), 'git', 'git.exe');
+  const ext = getExecutableExtension();
+  return path.join(getDefaultBinaryPath(), 'git', `git${ext}`);
 }
 
 export function getFallbackGitExecutablePath(): string {
-  return path.join(getDefaultBinaryPath(), 'git', 'cmd', 'git.exe');
+  const ext = getExecutableExtension();
+  if (process.platform === 'win32') {
+    return path.join(getDefaultBinaryPath(), 'git', 'cmd', `git${ext}`);
+  }
+  // On Unix, same as primary
+  return getPrimaryGitExecutablePath();
 }
 
 export function getPrimaryPythonExecutablePath(): string {
-  return path.join(getDefaultBinaryPath(), 'python', 'python.exe');
+  const ext = getExecutableExtension();
+  return path.join(getDefaultBinaryPath(), 'python', `python${ext}`);
 }
 
 export function getFallbackPythonExecutablePath(): string {
-  return path.join(getDefaultBinaryPath(), 'python', 'python.exe');
+  const ext = getExecutableExtension();
+  return path.join(getDefaultBinaryPath(), 'python', `python${ext}`);
 }
 
 export function getGitExecutablePath(): string {
@@ -82,5 +94,30 @@ export function getGitExecutablePath(): string {
 }
 
 export function getPythonExecutablePath(): string {
-  return fs.existsSync(getPrimaryPythonExecutablePath()) ? getPrimaryPythonExecutablePath() : getFallbackPythonExecutablePath();
+  // First try portable Python (Windows only)
+  const portablePython = getPrimaryPythonExecutablePath();
+  if (fs.existsSync(portablePython)) {
+    return portablePython;
+  }
+  
+  const fallbackPortable = getFallbackPythonExecutablePath();
+  if (fs.existsSync(fallbackPortable)) {
+    return fallbackPortable;
+  }
+  
+  // On non-Windows or if portable not available, try environment variable or system python
+  if (process.env.PYTHON) {
+    return process.env.PYTHON;
+  }
+  
+  // Fallback to system python
+  if (process.platform === 'win32') {
+    return 'python.exe';
+  }
+  return 'python3';
+}
+
+export function isBootstrapAvailable(): boolean {
+  // Bootstrap is only available on Windows with bundled runtimes
+  return process.platform === 'win32';
 }

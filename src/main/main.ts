@@ -1,13 +1,112 @@
 import path from 'node:path';
-import { app, BrowserWindow, Menu, Tray } from 'electron';
+import { app, BrowserWindow, Menu, Tray, screen } from 'electron';
 import { registerIpc, stopActiveOperation, setTrayUpdateFunction } from './ipc';
 import { getWindowIconPath, getLogoPath } from './services/runtime-paths';
 import { debugLog, isDebugEnabled, debugTimer, debugTimerEnd } from './services/debug';
+import { loadConfig, saveConfig } from './services/config-service';
+import { STATUS } from '../shared/status-constants';
+
+// Global error handlers for production robustness
+process.on('uncaughtException', (error) => {
+  debugLog('main', '[FATAL] Uncaught exception', error);
+  console.error('Uncaught exception:', error);
+  // Don't exit immediately - allow cleanup handlers to run
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  debugLog('main', '[ERROR] Unhandled promise rejection', { reason, promise });
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+});
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
-let currentStatus = 'Idle';
+let currentStatus: string = STATUS.IDLE;
+
+interface PersistedWindowState {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+}
+
+const DEFAULT_WINDOW_WIDTH = 980;
+const DEFAULT_WINDOW_HEIGHT = 720;
+const MIN_WINDOW_WIDTH = 720;
+const MIN_WINDOW_HEIGHT = 480;
+
+function rectsIntersect(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function isWindowStateVisibleOnAnyDisplay(state: PersistedWindowState): boolean {
+  if (state.x === undefined || state.y === undefined) {
+    return true;
+  }
+
+  const candidate = {
+    x: state.x,
+    y: state.y,
+    width: state.width,
+    height: state.height,
+  };
+
+  return screen.getAllDisplays().some((display) => rectsIntersect(candidate, display.workArea));
+}
+
+function loadWindowState(): PersistedWindowState {
+  const defaults: PersistedWindowState = {
+    width: DEFAULT_WINDOW_WIDTH,
+    height: DEFAULT_WINDOW_HEIGHT,
+  };
+
+  try {
+    const raw = loadConfig().windowState;
+    if (!raw) {
+      return defaults;
+    }
+
+    const width = typeof raw.width === 'number' ? Math.max(Math.round(raw.width), MIN_WINDOW_WIDTH) : DEFAULT_WINDOW_WIDTH;
+    const height = typeof raw.height === 'number' ? Math.max(Math.round(raw.height), MIN_WINDOW_HEIGHT) : DEFAULT_WINDOW_HEIGHT;
+    const loaded: PersistedWindowState = {
+      width,
+      height,
+      x: typeof raw.x === 'number' ? Math.round(raw.x) : undefined,
+      y: typeof raw.y === 'number' ? Math.round(raw.y) : undefined,
+    };
+
+    if (!isWindowStateVisibleOnAnyDisplay(loaded)) {
+      return { width, height };
+    }
+
+    return loaded;
+  } catch (error) {
+    debugLog('main', '[WINDOW] Failed to load persisted window state', error);
+    return defaults;
+  }
+}
+
+function saveWindowState(window: BrowserWindow): void {
+  try {
+    const bounds = window.isMaximized() ? window.getNormalBounds() : window.getBounds();
+    const state = {
+      width: Math.max(bounds.width, MIN_WINDOW_WIDTH),
+      height: Math.max(bounds.height, MIN_WINDOW_HEIGHT),
+      x: bounds.x,
+      y: bounds.y,
+    };
+    const config = loadConfig();
+    saveConfig({
+      ...config,
+      windowState: state,
+    });
+  } catch (error) {
+    debugLog('main', '[WINDOW] Failed to save persisted window state', error);
+  }
+}
 
 function createMainWindow(): BrowserWindow {
   const totalTimerId = 'main-window-total';
@@ -15,16 +114,21 @@ function createMainWindow(): BrowserWindow {
   const loadTimerId = 'main-window-load';
   debugTimer(totalTimerId);
   debugLog('main', '[WINDOW] Creating main window...');
+
+  const windowState = loadWindowState();
+  debugLog('main', '[WINDOW] Loaded persisted state', windowState);
   
   debugTimer(ctorTimerId);
   const window = new BrowserWindow({
-    width: 980,
-    height: 720,
-    minWidth: 720,
-    minHeight: 480,
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
+    minWidth: MIN_WINDOW_WIDTH,
+    minHeight: MIN_WINDOW_HEIGHT,
     title: 'SD.Next Launcher',
     icon: getWindowIconPath(),
-    backgroundColor: '#171717',
+    backgroundColor: '#333333',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,
@@ -64,6 +168,27 @@ function createMainWindow(): BrowserWindow {
     debugLog('main', '[WINDOW] Debug mode enabled, opening DevTools');
     window.webContents.openDevTools({ mode: 'detach' });
   }
+
+  let saveStateTimeout: NodeJS.Timeout | null = null;
+  const scheduleWindowStateSave = (): void => {
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+    }
+    saveStateTimeout = setTimeout(() => {
+      saveWindowState(window);
+      saveStateTimeout = null;
+    }, 200);
+  };
+
+  window.on('move', scheduleWindowStateSave);
+  window.on('resize', scheduleWindowStateSave);
+  window.on('close', () => {
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+      saveStateTimeout = null;
+    }
+    saveWindowState(window);
+  });
 
   return window;
 }
@@ -175,7 +300,7 @@ app.whenReady().then(() => {
   debugLog('main', '[APP] Electron app ready', { argv: process.argv, isDev: !app.isPackaged });
   
   debugLog('main', '[APP] Creating main window...');
-  // Register IPC handlers FIRST, before creating window
+  // Create main window first (IPC handlers registered after)
   mainWindow = createMainWindow();
   
   debugLog('main', '[APP] Setting up tray updates...');

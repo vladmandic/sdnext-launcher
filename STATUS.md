@@ -1,7 +1,61 @@
 # SD.Next Installer - Status Summary
 
-**Current Date**: March 5, 2026  
-**Project Status**: ✅ **ALL FEATURES COMPLETE** — Ready for Phase B Runtime Testing
+**Current Date**: March 7, 2026  
+**Project Status**: ✅ **PHASE 5 COMPLETE** — Advanced Features & Diagnostics Ready
+
+## Latest Update (March 7, 2026)
+
+### ✅ New Capabilities Added
+**Services**: 5 new services (checkpoint, logger, promise-utils, sandbox-test, workflow-common)  
+**Components**: 6 new UI components/hooks/styles  
+**User Options**: 4 new configuration options (public, theme, retries, windowState)  
+**Type Safety**: Brand validation types + full IPC type contracts  
+
+### Code Quality Status
+- ✅ TypeScript: 0 errors
+- ✅ ESLint: 0 errors, 0 warnings
+- ✅ Stylelint: 0 errors, 0 warnings
+- ✅ Build: Successful
+- ✅ All technical requirements met (130/130)
+
+### Major Workflow Improvements
+**Checkpoint Recovery**: Resume failed installations from last successful step  
+**Enhanced Logging**: Comprehensive diagnostics for troubleshooting  
+**Bootstrap Progress**: Real-time file extraction progress with sub-steps  
+**Theme Support**: Auto light/dark detection + user override  
+**Network Access**: Public mode for remote web UI access
+
+---
+
+## Suggestions Verification
+
+- SUGGESTIONS.md implementation audit completed.
+- Implemented: 13 suggestions.
+- Partial: 1 suggestion.
+- Pending: 3 suggestions.
+
+### Implemented
+- Retry/backoff for git/network operations
+- Partial installation recovery with checkpoint tracking
+- Sandbox venv health validation
+- Lazy terminal loading
+- Incremental bootstrap sub-step progress
+- Debounced config persistence
+- Shared workflow utility extraction
+- Logger service with leveled logging
+- Promise utility wrappers
+- Typed IPC channel contracts
+- Branded type validation usage in config/env parsing
+- Benchmark scripts (startup/build/package)
+- General code quality cleanup and lint conformance
+
+### Partial
+- Discriminated status model: current implementation keeps string union + helper (`createErrorStatus`) for compatibility.
+
+### Pending
+- Unit test suite for services
+- E2E Playwright automation
+- CI audit/checksum pipeline checks (on hold while ci.yml is removed)
 
 ---
 
@@ -27,7 +81,8 @@
 | 16 | Tabbed Content | ✅ Complete | Terminal, Docs iframe, Changelog from GitHub |
 | 17 | Theme & Visual | ✅ Complete | Auto dark/light, progress bar, clickable logo |
 | 18 | Terminal Color Output | ✅ Complete | PTY support, ANSI colors, stop feedback |
-| 19 | Runtime testing (Phase B) | ⏳ **NEXT** | Manual testing on Windows 10/11 |
+| 19 | UI/UX Polish & Confirmation Dialogs | ✅ Complete | Custom modal, git version info, network config |
+| 20 | Runtime testing (Phase B) | ⏳ **NEXT** | Manual testing on Windows 10/11 |
 
 ---
 
@@ -65,7 +120,53 @@
 
 ---
 
-## ✅ Requirements Verification (March 5, 2026)
+### Phase 19: UI/UX Polish & Confirmation Dialogs
+
+**Key Improvements**:
+1. **Custom Confirmation Modal System**
+   - Replaced native `window.confirm()` with neumorphic design modal dialog
+   - Promise-based API: `showConfirm(message): Promise<boolean>` for clean async handling
+   - Features: Overlay click-to-dismiss, fade-in/slide-in animations, responsive mobile layout
+   - Used for wipe confirmations with AlertTriangle icon and confirm/cancel buttons
+   - Matches app's visual design language with gradient background and shadows
+
+2. **Version Panel Enhancement with Git Integration**
+   - Added git commit date extraction: `git show -s --format=%ai HEAD` with fallback to `git log`
+   - Displays panel with: Date (from git), Commit hash (as clickable GitHub link), Branch, optional Update available
+   - Only Consolas font on commit hash, normal font for labels (refined typography)
+   - Robust error handling ensures commitDate always set (never undefined), defaults to 'N/A'
+   - Proper type safety: Added `commitDate: string` to version info type definitions
+
+3. **Public/Network Configuration**
+   - Added "Public" checkbox in Advanced options panel
+   - When enabled, adds `--listen` parameter to launcher (makes app accessible over network)
+   - Persists in config via `config.public: boolean` with schema validation
+   - EnablesUsers to run SD.Next on network interfaces instead of localhost only
+
+4. **Visual Polish**
+   - Wipe buttons repositioned to top-right of options panel with maroon background (#6b1f1f→#4a1515)
+   - Refined hover effects: maroon gradient, elevated shadow
+   - Stop/Exit buttons display maroon icon on hover (#b85555)
+   - Removed subtitle dynamic scaling (ResizeObserver) for simplified architecture
+
+5. **Title Styling**
+   - Split title: "SD.Next" (bold 20px) + "launcher" (12px) on separate lines
+   - Enhanced button hover effects: -3px lift, 1.02 scale, enhanced shadows
+   - Removed dynamic width scaling for subtitle
+
+**Technical Changes**:
+- `src/renderer/App.tsx`: Added confirmDialog state (open, message, callbacks), showConfirm() function, modal JSX
+- `src/main/ipc.ts`: Added commitDate field to version info, improved git cmd execution with dual fallback
+- `src/shared/types.ts`: Added `public: boolean` to SdNextConfig interface
+- `src/renderer/styles/app.css`: Added modal overlay/dialog styles, updated button colors to maroon, removed subtitle scaling
+- `src/main/services/config-service.ts`: Added `public: z.boolean()` schema, defaults to false
+- `src/main/services/start-workflow.ts`: Added conditional `--listen` flag when config.public is true
+
+**Validation**: ✅ All checks passed (TypeScript 0 errors, ESLint 0 errors, Stylelint 0 errors)
+
+---
+
+
 
 **Verification Status**: ✅ **100% COMPLIANT** (130/130 requirements met)
 
@@ -100,9 +201,9 @@ See [VERIFICATION.md](VERIFICATION.md) for detailed requirement-by-requirement v
 
 ---
 
-## ✅ Testing Status (March 5, 2026)
+## ✅ Testing Status (March 6, 2026)
 
-**Testing Documentation**: See [TESTING.md](TESTING.md) for comprehensive test plan (46 test cases)
+**Testing Documentation**: See [TESTING.md](TESTING.md) for comprehensive test plan (51 test cases)
 
 ### Phase A: Code Quality Tests (Automated) — ✅ ALL PASSED
 
@@ -130,8 +231,9 @@ See [VERIFICATION.md](VERIFICATION.md) for detailed requirement-by-requirement v
 - B8: Error Handling (3 tests)
 - B9: Paths and Directories (3 tests)
 - B10: Button State Logic (4 tests)
+- B11: UI/UX Enhancements (3 tests)
 
-**Total Runtime Tests**: 44 manual test cases
+**Total Runtime Tests**: 47 manual test cases
 
 **Prerequisites for Phase B**:
 - Windows 10 or Windows 11 (64-bit)

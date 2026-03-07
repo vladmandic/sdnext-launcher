@@ -15,6 +15,7 @@ if (DEBUG) log('[STARTUP] main.tsx script started');
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/app.css';
 import '@xterm/xterm/css/xterm.css';
 
@@ -32,7 +33,9 @@ if (DEBUG) log('[STARTUP] Rendering App component...');
 const renderStart = performance.now();
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );
 const renderEnd = performance.now();

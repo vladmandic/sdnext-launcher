@@ -29,7 +29,13 @@ export function getToolVersions(
 
   // Attempt to get git version
   const gitResult = spawnSync(gitExe, ['--version'], { encoding: 'utf8', windowsHide: true });
-  if (gitResult.status === 0) {
+  if (gitResult.error) {
+    const gitError = `Git not found or not executable\nCommand: ${gitExe} --version\nError: ${gitResult.error.message}\n`;
+    debugLog('tool-version', gitError);
+    if (onError) {
+      onError(gitError);
+    }
+  } else if (gitResult.status === 0) {
     gitOk = true;
     git = (gitResult.stdout || gitResult.stderr || '').trim() || 'Unknown';
   } else {
@@ -42,7 +48,13 @@ export function getToolVersions(
 
   // Attempt to get python version
   const pyResult = spawnSync(pythonExe, ['--version'], { encoding: 'utf8', windowsHide: true });
-  if (pyResult.status === 0) {
+  if (pyResult.error) {
+    const pythonError = `Python not found or not executable\nCommand: ${pythonExe} --version\nError: ${pyResult.error.message}\n`;
+    debugLog('tool-version', pythonError);
+    if (onError) {
+      onError(pythonError);
+    }
+  } else if (pyResult.status === 0) {
     pythonOk = true;
     python = (pyResult.stdout || pyResult.stderr || '').trim() || 'Unknown';
   } else {

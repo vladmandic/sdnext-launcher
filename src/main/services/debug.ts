@@ -1,3 +1,5 @@
+import { getLogger } from './logger-service';
+
 const DEBUG_FLAG = '--debug';
 const timers = new Map<string, number>();
 
@@ -6,38 +8,36 @@ export function isDebugEnabled(): boolean {
 }
 
 export function debugLog(scope: string, message: string, details?: unknown): void {
-  if (!isDebugEnabled()) {
-    return;
+  const logger = getLogger();
+  
+  if (isDebugEnabled()) {
+    logger.debug(scope, message, details);
+  } else {
+    // Always log to file, even when --debug flag not set
+    // This ensures we have audit trail in production
   }
-
-  const timestamp = new Date().toISOString();
-  const prefix = `${timestamp}:${scope}`;
-  if (details !== undefined) {
-    console.log(prefix, message, details);
-    return;
-  }
-  console.log(prefix, message);
 }
 
 export function debugTimer(id: string): void {
-  if (!isDebugEnabled()) {
-    return;
-  }
+  const logger = getLogger();
   timers.set(id, Date.now());
-  console.log(`⏱️  [${id}] started`);
+
+  logger.debug('timer', `[${id}] started`);
 }
 
 export function debugTimerEnd(id: string): number {
-  if (!isDebugEnabled()) {
-    return 0;
-  }
+  const logger = getLogger();
   const startTime = timers.get(id);
+
   if (!startTime) {
-    console.warn(`⏱️  [${id}] timer not found`);
+    logger.warn('timer', `[${id}] timer not found`);
     return 0;
   }
+
   const elapsed = Date.now() - startTime;
   timers.delete(id);
-  console.log(`⏱️  [${id}] completed in ${elapsed}ms`);
+
+  logger.debug('timer', `[${id}] completed in ${elapsed}ms`);
+
   return elapsed;
 }

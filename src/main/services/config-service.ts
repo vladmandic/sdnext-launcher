@@ -2,19 +2,49 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import type { SdNextConfig } from '../../shared/types';
+import { validatePath } from '../../shared/types';
 import { getConfigPath, getDefaultInstallationPath, getDefaultModelsPath } from './runtime-paths';
 
 const ConfigSchema = z.object({
   autoLaunch: z.boolean(),
   upgrade: z.boolean().default(false),
-  reinstall: z.boolean().default(false),
   wipe: z.boolean().default(false),
+  useUv: z.boolean().default(false),
   backend: z.enum(['autodetect', 'cuda', 'rocm', 'zluda', 'directml', 'ipex', 'openvino']).default('autodetect'),
   repositoryBranch: z.enum(['master', 'dev']),
-  installationPath: z.string().min(1),
-  modelsPath: z.string().min(1),
+  installationPath: z.string().min(1).refine(
+    (val) => {
+      try {
+        validatePath(val);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Invalid installation path' },
+  ),
+  modelsPath: z.string().min(1).refine(
+    (val) => {
+      try {
+        validatePath(val);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Invalid models path' },
+  ),
+  public: z.boolean(),
   customParameters: z.string(),
   customEnvironment: z.string(),
+  gitRetryCount: z.number().int().min(0).max(10).default(3).optional(),
+  theme: z.enum(['system', 'dark', 'light']).default('system').optional(),
+  windowState: z.object({
+    width: z.number().int().min(720),
+    height: z.number().int().min(480),
+    x: z.number().int().optional(),
+    y: z.number().int().optional(),
+  }).optional(),
 });
 
 function defaults(): SdNextConfig {
@@ -22,14 +52,18 @@ function defaults(): SdNextConfig {
   return {
     autoLaunch: false,
     upgrade: false,
-    reinstall: false,
     wipe: false,
+    useUv: false,
     backend: 'autodetect',
     repositoryBranch: 'dev',
     installationPath,
     modelsPath: getDefaultModelsPath(installationPath),
+    public: false,
     customParameters: '',
     customEnvironment: '',
+    gitRetryCount: 3,
+    theme: 'system',
+    windowState: undefined,
   };
 }
 

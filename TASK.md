@@ -1,6 +1,45 @@
 # SD.Next Installer/Launcher Task
 Create a UI that serves as installer and launcher for a complex python application that requires multiple dependencies and configurations. The UI should allow users to easily select and configure the necessary components, while the launcher should handle the installation and setup process seamlessly. The application should be designed to be user-friendly and accessible to both technical and non-technical users, with clear instructions and support resources available. 
 
+## March 7, 2026 Update
+
+### Major Features Added ✨
+**Status**: Enhanced with advanced features and diagnostic capabilities
+
+#### New Core Services
+- **Checkpoint Service** - Recover incomplete installations mid-process
+- **Logger Service** - Comprehensive file-based logging with queue buffering
+- **Promise Utilities** - Retry with exponential backoff, timeouts, deduplication
+- **Sandbox Test Service** - Python venv health validation
+- **Workflow Common** - Shared git/environment utilities, custom env parsing
+
+#### New UI Components & Features
+- **Error Boundary** - Graceful React error handling
+- **Lazy Terminal Panel** - On-demand terminal initialization
+- **Progress Bar** - Bootstrap extraction progress with file counts
+- **useDebounce Hook** - Config save debouncing
+- **Theme Preference** - Light/dark mode user selection
+- **Window State Persistence** - Remember window size/position
+
+#### New User Options
+- **Public Network Access** (`--listen` flag for server binding)
+- **Configurable Git Retries** - Override default 3 retry attempts
+- **Theme Preference** - System auto-detect or manual selection
+- **Advanced Progress Tracking** - Sub-step status for bootstrap
+- **Checkpoint Recovery** - Resume failed installations
+
+#### Enhanced Type Safety
+- **Branded Types** - `ValidatedPath`, `ValidatedEnvVarName` for input validation
+- **IPC Type Contracts** - Full type safety across main/renderer communication
+- **Enhanced IPC Definitions** - Type mappings for all channels
+
+#### Quality & Diagnostics
+- ✅ TypeScript: 0 errors
+- ✅ ESLint: 0 errors, 0 warnings
+- ✅ Stylelint: 0 errors, 0 warnings
+- ✅ Production build: Successful
+- ✅ All technical requirements met (130/130)
+
 ## Technical Requirements
 - Platform scope: Windows 10/11 64-bit only
 - Use `powershell` for all scripting and automation tasks

@@ -1,5 +1,38 @@
 ## Plan: SD.Next Installer-Launcher App
 
+## March 7, 2026 Update
+
+### Phase 5: Advanced Features & Diagnostics Complete ✨
+**Status**: Core features enhanced with recovery, logging, and validation systems
+
+#### New Service Architecture (5 services added)
+- **Checkpoint Recovery** - Installation pause/resume capability
+- **Comprehensive Logging** - Async queue-based file logging (max 1000 entries)
+- **Promise Utilities** - Retry/timeout/deduplication patterns
+- **Sandbox Validation** - Venv health checks with diagnostics
+- **Workflow Utilities** - Shared git operations, environment parsing
+
+#### UI Enhancements (6 components/features)
+- **Error Boundary** - React error protection with reload
+- **Lazy Terminal** - Efficient terminal initialization on-demand
+- **Progress Bar** - Real-time bootstrap progress (git/python file counts)
+- **Theme Support** - Auto light/dark detection + manual override
+- **Debounce Hook** - Config persistence debouncing (300ms)
+- **Window State** - Persist size/position across sessions
+
+#### User Workflow Improvements
+- **Checkpoint Recovery** - Resume installation from last successful step
+- **Bootstrap Sub-steps** - Granular progress: Clone → Checkout → Venv → Install → Test
+- **Public Network Mode** - Enable `--listen` for web UI access
+- **Configurable Retries** - Git clone retry count (default: 3)
+- **Enhanced Logging** - Comprehensive diagnostics for troubleshooting
+
+#### Type Safety & Validation
+- **Branded Types** - Path and environment variable validation
+- **Type-Safe IPC** - Complete channel definitions with payload types
+- **Runtime Validation** - Zod schema + custom validators
+- **Error Handling** - Global handlers + component boundaries
+
 Build a Windows-only Electron + React + TypeScript installer/launcher that uses bundled zip artifacts in `/portable` for Git and Python, unpacks them at startup when missing, persists preferences in `sdnext.json`, runs install/start workflows with bundled tools only, and streams live output into embedded `xterm.js`. The app must hide the menu bar, remain resizable, keep logo/indicators always visible, grow/shrink mainly in the terminal area, be modern and theme-aware (light/dark auto-detect), and safely terminate child processes on exit.
 
 ---

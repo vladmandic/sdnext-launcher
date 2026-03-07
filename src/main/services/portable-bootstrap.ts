@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
-import type { UiStatus } from '../../shared/types';
+import extract from 'extract-zip';
+import type { UiStatus, ExtractionProgressEvent } from '../../shared/types';
 import {
   getBundledGitZipPath,
   getBundledPythonZipPath,
@@ -18,20 +18,56 @@ let bootstrapPromise: Promise<void> | null = null;
 let bootstrapError: Error | null = null;
 let onOutputCallback: ((text: string, isError?: boolean) => void) | null = null;
 let onStatusCallback: ((status: UiStatus) => void) | null = null;
+let _onProgressCallback: ((progress: ExtractionProgressEvent) => void) | null = null;
+let _abortSignal: AbortSignal | null = null;
 
+/**
+ * Reset bootstrap state, clearing any cached promises or errors
+ */
 export function resetBootstrapState(): void {
   debugLog('bootstrap', 'Resetting bootstrap state');
+  // Abort any in-flight bootstrap before resetting
+  const controller = (globalThis as unknown as { bootstrapAbortController?: AbortController }).bootstrapAbortController;
+  if (controller && !controller.signal.aborted) {
+    debugLog('bootstrap', 'Aborting in-flight bootstrap before reset');
+    controller.abort();
+  }
   initialized = false;
   bootstrapPromise = null;
   bootstrapError = null;
+  _abortSignal = null;
 }
 
+/**
+ * Request bootstrap abortion via abort signal
+ */
+export function abortBootstrap(): void {
+  debugLog('bootstrap', 'Abort requested');
+  const controller = (globalThis as unknown as { bootstrapAbortController?: AbortController }).bootstrapAbortController;
+  if (controller && !controller.signal.aborted) {
+    controller.abort();
+  }
+}
+
+/**
+ * Set callback for bootstrap output messages
+ */
 export function setBootstrapOutputCallback(callback: (text: string, isError?: boolean) => void): void {
   onOutputCallback = callback;
 }
 
+/**
+ * Set callback for bootstrap status updates
+ */
 export function setBootstrapStatusCallback(callback: (status: UiStatus) => void): void {
   onStatusCallback = callback;
+}
+
+/**
+ * Set callback for extraction progress updates
+ */
+export function setBootstrapProgressCallback(callback: (progress: ExtractionProgressEvent) => void): void {
+  _onProgressCallback = callback;
 }
 
 export function cleanupPortableRuntimes(onLogOutput?: (text: string) => void): void {
@@ -107,39 +143,49 @@ function logStatus(status: UiStatus): void {
   }
 }
 
-async function runPowerShellExpandAsync(zipPath: string, destination: string): Promise<void> {
-  debugLog('bootstrap', 'Expanding archive', { zipPath, destination });
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      'powershell',
-      [
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        `Expand-Archive -Path "${zipPath}" -DestinationPath "${destination}" -Force`,
-      ],
-      { windowsHide: true },
-    );
+interface ExtractionProgress {
+  name: string;
+  filesExtracted: number;
+  totalFiles?: number;
+}
 
-    let stderr = '';
-    
-    child.stderr?.on('data', (data) => {
-      stderr += data.toString();
+async function extractZipAsync(
+  zipPath: string,
+  destination: string,
+  onProgress?: (progress: ExtractionProgress) => void,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  const zipName = path.basename(zipPath);
+  debugLog('bootstrap', 'Extracting archive with extract-zip', { zipPath, destination });
+  
+  let filesExtracted = 0;
+  
+  try {
+    await extract(zipPath, {
+      dir: destination,
+      onEntry: () => {
+        // Check abort signal during extraction
+        if (abortSignal?.aborted) {
+          throw new Error('Bootstrap aborted by user');
+        }
+        filesExtracted += 1;
+        if (onProgress) {
+          onProgress({
+            name: zipName,
+            filesExtracted,
+          });
+        }
+        // Log progress every 100 files to avoid noise
+        if (filesExtracted % 100 === 0) {
+          debugLog('bootstrap', `Extracted ${filesExtracted} files from ${zipName}`);
+        }
+      },
     });
-
-    child.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(stderr.trim() || `Failed to extract ${path.basename(zipPath)}.`));
-      } else {
-        resolve();
-      }
-    });
-
-    child.on('error', (error) => {
-      reject(error);
-    });
-  });
+    debugLog('bootstrap', 'Archive extraction complete', { zipPath, filesExtracted });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to extract ${zipName}: ${msg}`);
+  }
 }
 
 function findPythonDir(baseDir: string): string | null {
@@ -195,8 +241,19 @@ function hasPortableRuntimes(): boolean {
   return gitExists && pythonExists;
 }
 
+/**
+ * Ensure bundled Git and Python runtimes are extracted and available
+ * @param forceExtraction If true, re-extract even if runtimes already exist
+ */
 export async function ensurePortableRuntimes(forceExtraction = false): Promise<void> {
   debugLog('bootstrap', 'ensurePortableRuntimes invoked', { forceExtraction });
+  
+  // Portable runtimes are only available on Windows
+  if (process.platform !== 'win32') {
+    debugLog('bootstrap', 'Portable runtimes not available on non-Windows platforms');
+    throw new Error('Portable runtimes are only available on Windows. Please use system git and python.');
+  }
+  
   const primaryGit = getPrimaryGitExecutablePath();
   const fallbackGit = getFallbackGitExecutablePath();
   const primaryPython = getPrimaryPythonExecutablePath();
@@ -210,12 +267,40 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
     initialized = false;
   }
 
+  // Create abort controller for this bootstrap session
+  const abortController = new AbortController();
+  (globalThis as unknown as { bootstrapAbortController?: AbortController }).bootstrapAbortController = abortController;
+
   logOutput('Starting bootstrap process...\n');
   const binaryDir = getDefaultBinaryPath();
   fs.mkdirSync(binaryDir, { recursive: true });
 
-  // Extract Git
-  if (forceExtraction || (!fs.existsSync(primaryGit) && !fs.existsSync(fallbackGit))) {
+  // Prepare extraction tasks
+  const extractionTasks: Promise<void>[] = [];
+  const gitNeedsExtraction = forceExtraction || (!fs.existsSync(primaryGit) && !fs.existsSync(fallbackGit));
+  const pythonNeedsExtraction = forceExtraction || (!fs.existsSync(primaryPython) && !fs.existsSync(fallbackPython));
+
+  let gitProgress: ExtractionProgress = { name: 'git', filesExtracted: 0 };
+  let pythonProgress: ExtractionProgress = { name: 'python', filesExtracted: 0 };
+  let lastProgressEventTime = Date.now();
+
+  const handleProgress = (): void => {
+    const now = Date.now();
+    
+    // Send realtime progress events to UI every 100ms (for UI progress bar only)
+    if (now - lastProgressEventTime >= 100 && _onProgressCallback) {
+      lastProgressEventTime = now;
+      _onProgressCallback({
+        git: gitNeedsExtraction ? { filesExtracted: gitProgress.filesExtracted } : undefined,
+        python: pythonNeedsExtraction ? { filesExtracted: pythonProgress.filesExtracted } : undefined,
+      });
+    }
+    
+    // DO NOT output progress to terminal - only UI progress bar displays extraction metrics
+  };
+
+  // Extract Git in parallel
+  if (gitNeedsExtraction) {
     logStatus('Unpacking Git...');
     logOutput('Unpacking bundled Git runtime...\n');
     const gitZip = getBundledGitZipPath();
@@ -224,15 +309,30 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
     }
     const gitExtractDir = path.join(binaryDir, 'git');
     fs.mkdirSync(gitExtractDir, { recursive: true });
-    await runPowerShellExpandAsync(gitZip, gitExtractDir);
-    debugLog('bootstrap', 'Git extraction complete', { gitExtractDir });
-    logOutput('Git runtime unpacked successfully.\n');
+
+    extractionTasks.push(
+      extractZipAsync(gitZip, gitExtractDir, (progress) => {
+        gitProgress = progress;
+        handleProgress();
+      }, abortController.signal).then(() => {
+        debugLog('bootstrap', 'Git extraction complete', { gitExtractDir });
+        logStatus('Verifying Git installation...');
+        logOutput('Git runtime unpacked successfully.\n');
+        // Send final progress update to UI
+        if (_onProgressCallback) {
+          _onProgressCallback({
+            git: { filesExtracted: gitProgress.filesExtracted },
+            python: pythonNeedsExtraction ? { filesExtracted: pythonProgress.filesExtracted } : undefined,
+          });
+        }
+      }),
+    );
   } else {
     logOutput('Git runtime already available.\n');
   }
 
-  // Extract Python
-  if (forceExtraction || (!fs.existsSync(primaryPython) && !fs.existsSync(fallbackPython))) {
+  // Extract Python in parallel
+  if (pythonNeedsExtraction) {
     logStatus('Unpacking Python...');
     logOutput('Unpacking bundled Python runtime...\n');
     const pythonZip = getBundledPythonZipPath();
@@ -241,11 +341,43 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
     }
     const pythonExtractDir = path.join(binaryDir, 'python');
     fs.mkdirSync(pythonExtractDir, { recursive: true });
-    await runPowerShellExpandAsync(pythonZip, pythonExtractDir);
-    debugLog('bootstrap', 'Python extraction complete', { pythonExtractDir });
-    logOutput('Python runtime unpacked successfully.\n');
+
+    extractionTasks.push(
+      extractZipAsync(pythonZip, pythonExtractDir, (progress) => {
+        pythonProgress = progress;
+        handleProgress();
+      }, abortController.signal).then(() => {
+        debugLog('bootstrap', 'Python extraction complete', { pythonExtractDir });
+        logStatus('Verifying Python installation...');
+        logOutput('Python runtime unpacked successfully.\n');
+        // Send final progress update to UI
+        if (_onProgressCallback) {
+          _onProgressCallback({
+            git: gitNeedsExtraction ? { filesExtracted: gitProgress.filesExtracted } : undefined,
+            python: { filesExtracted: pythonProgress.filesExtracted },
+          });
+        }
+      }),
+    );
   } else {
     logOutput('Python runtime already available.\n');
+  }
+
+  // Wait for both extractions to complete in parallel
+  if (extractionTasks.length > 0) {
+    // Check for abort before proceeding
+    if (abortController.signal.aborted) {
+      throw new Error('Bootstrap aborted by user');
+    }
+    try {
+      await Promise.all(extractionTasks);
+    } catch (error) {
+      if (abortController.signal.aborted) {
+        throw new Error('Bootstrap aborted by user');
+      }
+      throw error;
+    }
+    logOutput('Extraction complete.\n');
   }
 
   const pythonDir = path.join(binaryDir, 'python');
@@ -262,8 +394,14 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
   logOutput('Bootstrap complete.\n');
   initialized = true;
   debugLog('bootstrap', 'Bootstrap completed successfully');
+  
+  // Clean up abort controller
+  (globalThis as unknown as { bootstrapAbortController?: AbortController | null }).bootstrapAbortController = null;
 }
 
+/**
+ * Start bootstrap process asynchronously (idempotent - returns stored promise if already running)
+ */
 export function startBootstrapAsync(): Promise<void> {
   if (bootstrapPromise) {
     return bootstrapPromise;
@@ -271,12 +409,17 @@ export function startBootstrapAsync(): Promise<void> {
 
   bootstrapPromise = ensurePortableRuntimes().catch((error) => {
     bootstrapError = error as Error;
+    // Clean up abort controller on error
+    (globalThis as unknown as { bootstrapAbortController?: AbortController | null }).bootstrapAbortController = null;
     throw error;
   });
 
   return bootstrapPromise;
 }
 
+/**
+ * Check if bootstrap process has completed successfully
+ */
 export function isBootstrapComplete(): boolean {
   if (!initialized && hasPortableRuntimes()) {
     // Restore bootstrap-complete state on fresh app runs when runtimes already exist on disk.
@@ -287,6 +430,9 @@ export function isBootstrapComplete(): boolean {
   return initialized;
 }
 
+/**
+ * Get any error that occurred during bootstrap
+ */
 export function getBootstrapError(): Error | null {
   return bootstrapError;
 }
