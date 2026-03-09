@@ -24,7 +24,7 @@
     "clean": "@powershell -NoProfile -ExecutionPolicy Bypass -Command \"Remove-Item -Path dist -Recurse -Force -ErrorAction SilentlyContinue\"",
     "package": "npm run build && electron-builder --win && node scripts/zip-dir.js",
     "dir": "dir dist\\SD.Next-%npm_package_version%.exe && dir dist\\SD.Next-%npm_package_version%.zip",
-    "upload": "npm run dir && gh release create v%npm_package_version% dist\\SD.Next-%npm_package_version%.exe dist\\SD.Next-%npm_package_version%.zip --title \"SD.Next %npm_package_version%\" --notes \"Release %npm_package_version%\" --prerelease",
+    "upload": "npm run dir && git push origin --tags && gh release create v%npm_package_version% dist\\SD.Next-%npm_package_version%.exe dist\\SD.Next-%npm_package_version%.zip --title \"SD.Next %npm_package_version%\" --notes \"Release %npm_package_version%\" --prerelease",
     "publish": "npm version patch && npm run clean && npm run package && npm run upload"
   },
   "dependencies": {
