@@ -1,6 +1,6 @@
 {
   "name": "sdnext-exe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SD.Next Windows installer and launcher",
   "main": "dist/electron/main/main.js",
   "author": "vladmandic",
@@ -98,7 +98,7 @@
             "x64"
           ]
         }
-        ]
+      ]
     },
     "appx": {
       "applicationId": "com.vladmandic.sdnext"
