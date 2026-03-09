@@ -36,6 +36,11 @@ Download: <https://github.com/vladmandic/sdnext-launcher/releases>
 > [!NOTE]
 > The entire process takes 10-30 minutes depending on your internet speed and hardware.
 
+Installer creates **sdnext** folder (configurable) with subfolders:
+- `bin/`: contains `git` and `python` portable executables
+- `venv/`: contains virtual environment with all SD.Next dependencies
+- `app/`: contains SD.Next application files
+
 ![sdnext-launch-bootstrap](public/screenshot-bootstrap.jpg)
 ![sdnext-launch-install](public/screenshot-install.jpg)
 ![sdnext-launch-options](public/screenshot-options.jpg)

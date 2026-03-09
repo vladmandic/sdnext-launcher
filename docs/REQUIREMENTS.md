@@ -1027,7 +1027,10 @@ sdnext-exe/
     "lint": "npm run lint:ts && npm run lint:css",
     
     "package": "npm run build && electron-builder --win portable",
-    "package:dir": "npm run build && electron-builder --win --dir && node scripts/zip-dir.js"  
+    "package:exe": "npm run build && electron-builder --win portable && node scripts/zip-dir.js",
+    "package:dir": "npm run build && electron-builder --win --dir && node scripts/zip-dir.js",
+    // `dir` builds unpacked directory and zips; exe script now also zips so both
+    // artifacts are always present.
     "publish": "npm run package && npm run package:dir && gh release create v${npm_package_version} dist/${npm_package_name}-${npm_package_version}.exe dist/${npm_package_name}-${npm_package_version}.zip --title \"SD.Next ${npm_package_version}\" --notes \"Release ${npm_package_version}\""  
   }
 }

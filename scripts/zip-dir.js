@@ -2,7 +2,8 @@ const { execSync } = require('child_process');
 const path = require('path');
 const pkg = require('../package.json');
 
-const name = pkg.productName || pkg.name || 'app';
+// const name = pkg.productName || pkg.name || 'app';
+const name = 'SD.Next'; // override to avoid "sdnext-launcher" in zip name
 const version = pkg.version || '0.0.0';
 // zip filename should match package name + version; no extra "-dir" suffix
 const zipName = `${name}-${version}.zip`;

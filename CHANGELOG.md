@@ -4,3 +4,4 @@
 2026-03-09 16:45: [UI] Skip update check / "Checking updates..." when Git tool is unavailable; status defaults to up-to-date until Git returns.
 2026-03-09 17:00: [Build] package:dir script now also zips the win-unpacked output into dist; adds `scripts/zip-dir.js` helper (named <name>-<version>.zip).
 2026-03-09 17:15: [Build] Added `publish` npm script to bump patch version, build installer/dir and create a GitHub prerelease with both EXE and ZIP (requires `gh` CLI).
+2026-03-09 17:25: [Build] Make `package:exe` run `zip-dir.js` so the zip is recreated when only the exe is built (previously packaging exe removed existing zip).
