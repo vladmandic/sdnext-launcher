@@ -6,6 +6,7 @@ import { getVenvPythonPath } from './venv-service';
 import { ensurePortableRuntimes } from './portable-bootstrap';
 import { debugLog } from './debug';
 import { splitParameters, buildProcessEnvironment, runGit, getCurrentBranch } from './workflow-common';
+import { getPythonCrashDetails } from './crash-service';
 
 export async function runLaunchWorkflow(
   runner: ProcessRunner,
@@ -52,7 +53,7 @@ export async function runLaunchWorkflow(
   args.push(...splitParameters(config.customParameters));
   debugLog('launch', 'Launching start python command', { args, appPath });
 
-  return runner.run({
+  const code = await runner.run({
     command: venvPython,
     args,
     cwd: appPath,
@@ -62,4 +63,13 @@ export async function runLaunchWorkflow(
     terminalCols: terminalDimensions?.cols,
     terminalRows: terminalDimensions?.rows,
   });
+
+  if (code !== 0) {
+    const crashInfo = await getPythonCrashDetails(config.installationPath);
+    if (crashInfo) {
+      onOutput(`[error] Python crash details:\n${crashInfo}\n`, true);
+    }
+  }
+
+  return code;
 }

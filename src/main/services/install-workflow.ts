@@ -9,6 +9,7 @@ import { debugLog } from './debug';
 import { toBackendArgs, splitParameters, buildProcessEnvironment, runGit, runGitWithRetry, getCurrentBranch } from './workflow-common';
 import { getCheckpointService } from './checkpoint-service';
 import { runSandboxTest } from './sandbox-test-service';
+import { getPythonCrashDetails } from './crash-service';
 
 const SDNEXT_REPO_URL = 'https://github.com/vladmandic/sdnext';
 
@@ -128,7 +129,14 @@ export async function runInstallWorkflow(
       });
       
       if (result !== 0) {
-        checkpointSvc.markError(checkpoint, `Installation failed with exit code ${result}`);
+        // try to gather crash details from platform-specific sources
+        const crashInfo = await getPythonCrashDetails(config.installationPath);
+        if (crashInfo) {
+          onOutput(`[error] Python crash details:\n${crashInfo}\n`, true);
+          checkpointSvc.markError(checkpoint, `Installation failed with exit code ${result}\n${crashInfo}`);
+        } else {
+          checkpointSvc.markError(checkpoint, `Installation failed with exit code ${result}`);
+        }
         return result;
       }
       
