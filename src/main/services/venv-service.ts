@@ -35,11 +35,23 @@ export function ensureVenv(
   }
 
   onOutput('[venv] Creating virtual environment at /venv\n');
-  const result = spawnSync(portablePythonPath, ['-m', 'venv', path.join(installationPath, 'venv')], {
-    cwd: installationPath,
-    encoding: 'utf8',
-    windowsHide: true,
-  });
+  let result;
+  try {
+    result = spawnSync(portablePythonPath, ['-m', 'venv', path.join(installationPath, 'venv')], {
+      cwd: installationPath,
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to invoke python to create venv (${portablePythonPath}): ${msg}`);
+  }
+
+  if (result.error) {
+    // Node.js may set result.error when spawn fails (missing executable, etc.)
+    const errMsg = result.error instanceof Error ? result.error.message : String(result.error);
+    throw new Error(`Error launching python for venv creation: ${errMsg}`);
+  }
 
   if (result.stdout) {
     onOutput(result.stdout);
@@ -49,7 +61,11 @@ export function ensureVenv(
   }
 
   if (result.status !== 0 || !fs.existsSync(venvPython)) {
-    throw new Error('Failed to create /venv using bundled python-portable.');
+    const exitCode = result.status;
+    const stderrText = result.stderr ? result.stderr.trim() : '<none>';
+    throw new Error(
+      `venv creation failed (exit ${exitCode}); stderr: ${stderrText}`
+    );
   }
 
   return venvPython;
