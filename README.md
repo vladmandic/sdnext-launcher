@@ -4,7 +4,7 @@ A simple, *all-in-one* application for installing and running [SD.Next](https://
 
 Download: <https://github.com/vladmandic/sdnext-launcher/releases>
 
-![sdnext-launch-screenshot](public/screenshot-launch.jpg)
+![sdnext-launch-screenshot](https://raw.githubusercontent.com/vladmandic/sdnext-launcher/refs/heads/main/public/screenshot-launch.jpg)
 
 - **No setup hassles** — All dependencies bundled. `Python` and `Git` included, nothing extra to install.
 - **One-click installation** — Just download the `EXE` and run. The installer guides you through everything.
@@ -41,9 +41,9 @@ Installer creates **sdnext** folder (configurable) with subfolders:
 - `venv/`: contains virtual environment with all SD.Next dependencies
 - `app/`: contains SD.Next application files
 
-![sdnext-launch-bootstrap](public/screenshot-bootstrap.jpg)
-![sdnext-launch-install](public/screenshot-install.jpg)
-![sdnext-launch-options](public/screenshot-options.jpg)
+![sdnext-launch-bootstrap](https://raw.githubusercontent.com/vladmandic/sdnext-launcher/refs/heads/main/public/screenshot-bootstrap.jpg)
+![sdnext-launch-install](https://raw.githubusercontent.com/vladmandic/sdnext-launcher/refs/heads/main/public/screenshot-install.jpg)
+![sdnext-launch-options](https://raw.githubusercontent.com/vladmandic/sdnext-launcher/refs/heads/main/public/screenshot-options.jpg)
 
 > [!TIP]
 > **Logs Are Your Friend**: Always check the terminal output and logs if something goes wrong—they contain detailed information  
