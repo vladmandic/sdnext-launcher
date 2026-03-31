@@ -56,7 +56,7 @@ function defaults(): SdNextConfig {
     wipe: false,
     useUv: false,
     backend: 'autodetect',
-    repositoryBranch: 'dev',
+    repositoryBranch: 'master',
     installationPath,
     modelsPath: getDefaultModelsPath(installationPath),
     public: false,
