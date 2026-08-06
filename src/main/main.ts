@@ -6,6 +6,7 @@ import { debugLog, isDebugEnabled, debugTimer, debugTimerEnd } from './services/
 import { loadConfig, saveConfig } from './services/config-service';
 
 // Global error handlers for production robustness
+app.disableHardwareAcceleration();
 process.on('uncaughtException', (error) => {
   debugLog('main', '[FATAL] Uncaught exception', error);
   console.error('Uncaught exception:', error);
@@ -191,8 +192,6 @@ function createMainWindow(): BrowserWindow {
 
   return window;
 }
-
-
 
 app.whenReady().then(() => {
   const appStartTimerId = 'app-startup-total';

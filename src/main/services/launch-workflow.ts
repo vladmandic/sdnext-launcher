@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { SdNextConfig, TerminalDimensions } from '../../shared/types';
+import type { LaunchOptions, SdNextConfig, TerminalDimensions } from '../../shared/types';
 import { ProcessRunner } from './process-runner';
 import { getVenvPythonPath } from './venv-service';
 import { ensurePortableRuntimes } from './portable-bootstrap';
@@ -13,6 +13,7 @@ export async function runLaunchWorkflow(
   config: SdNextConfig,
   onOutput: (text: string, isError?: boolean) => void,
   terminalDimensions?: TerminalDimensions,
+  options?: LaunchOptions,
 ): Promise<number> {
   debugLog('launch', 'runLaunchWorkflow invoked', {
     installationPath: config.installationPath,
@@ -43,6 +44,9 @@ export async function runLaunchWorkflow(
   const args = ['launch.py', '--log', 'sdnext.log', '--models-dir', config.modelsPath];
   if (config.useUv) {
     args.push('--uv');
+  }
+  if (options?.upgradeAndTest) {
+    args.push('--upgrade', '--test');
   }
   if (config.autoLaunch) {
     args.push('--autolaunch');

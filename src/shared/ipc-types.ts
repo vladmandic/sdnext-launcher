@@ -9,6 +9,7 @@ import type {
   SdNextConfig,
   StartupState,
   InstallOptions,
+  LaunchOptions,
   TerminalDimensions,
   UiStatus,
   TerminalOutputEvent,
@@ -82,6 +83,7 @@ export interface IpcInvokeChannels {
     params: {
       config: SdNextConfig;
       terminalDimensions?: TerminalDimensions;
+      options?: LaunchOptions;
     };
     return: { success: boolean; code: number };
   };

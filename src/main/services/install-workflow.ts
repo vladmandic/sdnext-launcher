@@ -2,17 +2,76 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { InstallOptions, SdNextConfig, TerminalDimensions, UiStatus } from '../../shared/types';
 import { ProcessRunner } from './process-runner';
-import { ensureVenv } from './venv-service';
+import { ensureVenv, getVenvPythonPath } from './venv-service';
 import { getPythonExecutablePath } from './runtime-paths';
 import { ensurePortableRuntimes } from './portable-bootstrap';
 import { debugLog } from './debug';
 import { toBackendArgs, splitParameters, buildProcessEnvironment, runGit, runGitWithRetry, getCurrentBranch } from './workflow-common';
-import { getCheckpointService } from './checkpoint-service';
+import { getCheckpointService, InstallationCheckpoint, CheckpointData } from './checkpoint-service';
 import { runSandboxTest } from './sandbox-test-service';
 import { getPythonCrashDetails } from './crash-service';
 
 const SDNEXT_REPO_URL = 'https://github.com/vladmandic/sdnext';
 
+function invalidateCheckpointFromStep(
+  checkpoint: CheckpointData,
+  step: InstallationCheckpoint,
+  checkpointSvc: ReturnType<typeof getCheckpointService>,
+): void {
+  const stepSequence: InstallationCheckpoint[] = [
+    'start',
+    'git-clone',
+    'git-checkout',
+    'venv-created',
+    'dependencies-installed',
+    'sandbox-test-passed',
+    'complete',
+  ];
+  const startIndex = stepSequence.indexOf(step);
+  if (startIndex === -1) {
+    return;
+  }
+
+  const remainingSteps = checkpoint.completedSteps.filter(
+    (completedStep) => stepSequence.indexOf(completedStep) < startIndex,
+  );
+
+  if (remainingSteps.length !== checkpoint.completedSteps.length) {
+    checkpoint.completedSteps = remainingSteps;
+    checkpointSvc.saveCheckpoint(checkpoint);
+  }
+}
+
+function hasValidGitClone(appPath: string): boolean {
+  return fs.existsSync(path.join(appPath, '.git'));
+}
+
+function isOnBranch(appPath: string, branch: string): boolean {
+  try {
+    const currentBranch = getCurrentBranch(appPath);
+    return currentBranch === branch;
+  } catch {
+    return false;
+  }
+}
+
+function hasValidVenv(installationPath: string): boolean {
+  return fs.existsSync(getVenvPythonPath(installationPath));
+}
+
+function hasValidDependencies(appPath: string): boolean {
+  return fs.existsSync(path.join(appPath, 'install.log'));
+}
+
+function isSandboxHealthy(installationPath: string): boolean {
+  if (!hasValidVenv(installationPath)) {
+    return false;
+  }
+
+  const venvPython = getVenvPythonPath(installationPath);
+  const result = runSandboxTest(venvPython);
+  return result.healthy;
+}
 
 export async function runInstallWorkflow(
   runner: ProcessRunner,
@@ -55,15 +114,21 @@ export async function runInstallWorkflow(
       await ensurePortableRuntimes(false, config.installationPath);
     }
 
-    fs.mkdirSync(appPath, { recursive: true });
+    // fs.mkdirSync(appPath, { recursive: true });
 
     // Git Clone Step
+    if (checkpointSvc.isStepCompleted(checkpoint, 'git-clone') && !hasValidGitClone(appPath)) {
+      debugLog('install', 'Stale checkpoint for git-clone detected; resetting downstream steps', { appPath });
+      invalidateCheckpointFromStep(checkpoint, 'git-clone', checkpointSvc);
+    }
+
     if (!checkpointSvc.isStepCompleted(checkpoint, 'git-clone')) {
       if (!fs.existsSync(path.join(appPath, '.git'))) {
         debugLog('install', 'Cloning repository', { appPath, branch: config.repositoryBranch });
         if (onStatus) onStatus('Cloning repository...');
         onOutput(`[git] Cloning ${SDNEXT_REPO_URL}\n`);
         const retryCount = config.gitRetryCount ?? 3;
+        await runGit(['config', '--global', '--replace-all', 'safe.directory', '*'], onOutput);
         // use shallow clone to speed up downloads
         await runGitWithRetry(['clone', '--depth', '1', '--branch', config.repositoryBranch, SDNEXT_REPO_URL, appPath], onOutput, config.installationPath, retryCount);
       }
@@ -73,6 +138,11 @@ export async function runInstallWorkflow(
     }
 
     // Git Checkout Step
+    if (checkpointSvc.isStepCompleted(checkpoint, 'git-checkout') && !isOnBranch(appPath, config.repositoryBranch)) {
+      debugLog('install', 'Stale checkpoint for git-checkout detected; resetting downstream steps', { appPath, branch: config.repositoryBranch });
+      invalidateCheckpointFromStep(checkpoint, 'git-checkout', checkpointSvc);
+    }
+
     if (!checkpointSvc.isStepCompleted(checkpoint, 'git-checkout')) {
       const currentBranch = getCurrentBranch(appPath);
       if (currentBranch === config.repositoryBranch) {
@@ -89,6 +159,11 @@ export async function runInstallWorkflow(
     }
 
     // VENV Creation Step
+    if (checkpointSvc.isStepCompleted(checkpoint, 'venv-created') && !hasValidVenv(config.installationPath)) {
+      debugLog('install', 'Stale checkpoint for venv-created detected; resetting downstream steps', { installationPath: config.installationPath });
+      invalidateCheckpointFromStep(checkpoint, 'venv-created', checkpointSvc);
+    }
+
     if (!checkpointSvc.isStepCompleted(checkpoint, 'venv-created')) {
       if (onStatus) onStatus('Creating VENV...');
       ensureVenv(config.installationPath, getPythonExecutablePath(config.installationPath), onOutput);
@@ -98,6 +173,11 @@ export async function runInstallWorkflow(
     }
 
     // Dependencies Installation Step
+    if (checkpointSvc.isStepCompleted(checkpoint, 'dependencies-installed') && !hasValidDependencies(appPath)) {
+      debugLog('install', 'Stale checkpoint for dependencies-installed detected; resetting downstream steps', { appPath });
+      invalidateCheckpointFromStep(checkpoint, 'dependencies-installed', checkpointSvc);
+    }
+
     if (!checkpointSvc.isStepCompleted(checkpoint, 'dependencies-installed')) {
       const venvPython = ensureVenv(config.installationPath, getPythonExecutablePath(config.installationPath), onOutput);
       const args = ['launch.py', '--test', '--log', 'install.log'];
@@ -147,6 +227,11 @@ export async function runInstallWorkflow(
 
     // Mark complete and clear checkpoint on success
     // Run sandbox test before marking complete
+    if (checkpointSvc.isStepCompleted(checkpoint, 'sandbox-test-passed') && !isSandboxHealthy(config.installationPath)) {
+      debugLog('install', 'Stale checkpoint for sandbox-test-passed detected; resetting downstream steps', { installationPath: config.installationPath });
+      invalidateCheckpointFromStep(checkpoint, 'sandbox-test-passed', checkpointSvc);
+    }
+
     if (!checkpointSvc.isStepCompleted(checkpoint, 'sandbox-test-passed')) {
       onOutput('[install] Running sandbox test to verify installation...\n');
       const venvPython = ensureVenv(config.installationPath, getPythonExecutablePath(config.installationPath), onOutput);

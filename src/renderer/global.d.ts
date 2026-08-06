@@ -9,7 +9,7 @@ declare global {
       saveConfig: (config: SdNextConfig) => Promise<SdNextConfig>;
       browseDirectory: () => Promise<string | null>;
       install: (config: SdNextConfig, options: InstallOptions, terminalDimensions?: TerminalDimensions) => Promise<{ success: boolean; code: number }>;
-      launch: (config: SdNextConfig, terminalDimensions?: TerminalDimensions) => Promise<{ success: boolean; code: number }>;
+      launch: (config: SdNextConfig, terminalDimensions?: TerminalDimensions, options?: import('../shared/types').LaunchOptions) => Promise<{ success: boolean; code: number }>;
       stop: () => Promise<{ success: boolean }>;
       exit: () => Promise<{ success: boolean }>;
       readLog: (kind: 'install' | 'launch', config: SdNextConfig) => Promise<{ exists: boolean; path: string; content: string }>;

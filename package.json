@@ -11,7 +11,7 @@
     "dev:electron:build": "tsc -p tsconfig.electron.json -w",
     "dev:electron": "wait-on tcp:5173 file:dist/electron/main/main.js file:dist/electron/preload/preload.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron . -- --debug",
     "prod": "npm run build && npm run prod:electron",
-    "prod:electron": "wait-on file:dist/electron/main/main.js file:dist/electron/preload/preload.js file:dist/index.html && electron .",
+    "prod:electron": "wait-on file:dist/electron/main/main.js file:dist/electron/preload/preload.js file:dist/index.html && electron . --disable-gpu --no-sandbox",
     "build": "npm run build:renderer && npm run build:electron",
     "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
@@ -106,5 +106,10 @@
     "portable": {
       "artifactName": "SD.Next-${version}.exe"
     }
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.28.1": true,
+    "node-pty@1.1.0": true
   }
 }

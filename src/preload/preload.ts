@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { InstallOptions, SdNextConfig, StartupState, TerminalDimensions, TerminalOutputEvent, UiStatus, VersionUpdateEvent, ToolsUpdateEvent, GPUUpdateEvent, ExtractionProgressEvent } from '../shared/types';
+import type { InstallOptions, LaunchOptions, SdNextConfig, StartupState, TerminalDimensions, TerminalOutputEvent, UiStatus, VersionUpdateEvent, ToolsUpdateEvent, GPUUpdateEvent, ExtractionProgressEvent } from '../shared/types';
 
 const api = {
   startBootstrap: (installationPath?: string): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:start-bootstrap', installationPath ? { installationPath } : undefined),
@@ -9,7 +9,8 @@ const api = {
   browseDirectory: (): Promise<string | null> => ipcRenderer.invoke('launcher:browse-directory'),
   install: (config: SdNextConfig, options: InstallOptions, terminalDimensions?: TerminalDimensions): Promise<{ success: boolean; code: number }> =>
     ipcRenderer.invoke('launcher:install', { config, options, terminalDimensions }),
-  launch: (config: SdNextConfig, terminalDimensions?: TerminalDimensions): Promise<{ success: boolean; code: number }> => ipcRenderer.invoke('launcher:launch', { config, terminalDimensions }),
+  launch: (config: SdNextConfig, terminalDimensions?: TerminalDimensions, options?: LaunchOptions): Promise<{ success: boolean; code: number }> =>
+    ipcRenderer.invoke('launcher:launch', { config, terminalDimensions, options }),
   stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:stop'),
   exit: (): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:exit'),
   readLog: (kind: 'install' | 'launch', config: SdNextConfig): Promise<{ exists: boolean; path: string; content: string }> =>

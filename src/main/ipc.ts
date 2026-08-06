@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { shell } from 'electron';
-import type { InstallOptions, SdNextConfig, TerminalDimensions, UiStatus, StartupState, ExtractionProgressEvent } from '../shared/types';
+import type { InstallOptions, LaunchOptions, SdNextConfig, TerminalDimensions, UiStatus, StartupState, ExtractionProgressEvent } from '../shared/types';
 import { loadConfig, saveConfig } from './services/config-service';
 import { getLogoPath, isBootstrapAvailable, getGitExecutablePath } from './services/runtime-paths';
 import { readInstalledVersion } from './services/version-service';
@@ -560,7 +560,7 @@ export function registerIpc(window: BrowserWindow): void {
    * @param payload - Contains config and optional terminal dimensions
    * @returns Promise resolving to success status and exit code
    */
-  ipcMain.handle('launcher:launch', async (_event, payload: { config: SdNextConfig; terminalDimensions?: TerminalDimensions }) => {
+  ipcMain.handle('launcher:launch', async (_event, payload: { config: SdNextConfig; terminalDimensions?: TerminalDimensions; options?: LaunchOptions }) => {
     const timerId = `launch-workflow-${Date.now()}`;
     debugTimer(timerId);
     debugLog('ipc', '[LAUNCH] launcher:launch invoked', { backend: payload.config.backend, repositoryBranch: payload.config.repositoryBranch });

@@ -126,6 +126,10 @@ export interface InstallOptions {
   backend: ComputeBackend;
 }
 
+export interface LaunchOptions {
+  upgradeAndTest?: boolean;
+}
+
 export interface TerminalDimensions {
   cols: number;
   rows: number;

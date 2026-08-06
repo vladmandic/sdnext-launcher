@@ -22,6 +22,7 @@ import {
   ChevronRight,
   X,
   Info,
+  ArrowUpCircle,
 } from 'lucide-react';
 
 import type { SdNextConfig, StartupState, TerminalDimensions, UiStatus } from '../shared/types';
@@ -33,7 +34,7 @@ import { LazyTerminalPanel } from './components/LazyTerminalPanel';
 import { ProgressBar } from './components/ProgressBar';
 import { useDebounce } from './hooks/useDebounce';
 
-type ActionState = 'idle' | 'bootstrap' | 'install' | 'launch' | 'wipe-venv' | 'wipe-bin' | 'wipe-app';
+type ActionState = 'idle' | 'bootstrap' | 'install' | 'launch' | 'upgrade' | 'wipe-venv' | 'wipe-bin' | 'wipe-app';
 type WipeTarget = 'venv' | 'bin' | 'app';
 const VERSION_CHECK_DEDUPE_MS = 2000;
 
@@ -841,6 +842,22 @@ export function App() {
     }
   };
 
+  const upgradeLaunch = async (): Promise<void> => {
+    setActiveAction('upgrade');
+    setBusy(true);
+    setTerminalLines([]);
+    setTorchBackendInfo('Checking...');
+    torchTerminalTailRef.current = '';
+    try {
+      const effectiveConfig = config.backend === 'autodetect' 
+        ? { ...config, backend: startup.recommendedBackend }
+        : config;
+      await window.sdnext.launch(effectiveConfig, terminalDimensions, { upgradeAndTest: true });
+    } finally {
+      setActiveAction((prev) => (prev === 'upgrade' ? 'idle' : prev));
+    }
+  };
+
   const stop = async (): Promise<void> => {
     await window.sdnext.stop();
   };
@@ -1254,6 +1271,15 @@ export function App() {
         >
           <Play size={16} aria-hidden="true" />
         </button>
+        <button 
+          className={`icon-btn action-btn ${activeAction === 'upgrade' ? 'is-running' : ''}`}
+          onClick={upgradeLaunch} 
+          disabled={busy || isInitializing || !bootstrapComplete || !startup.installed}
+          title={!bootstrapComplete ? 'Upgrade: Install required first' : !startup.installed ? 'Upgrade: Not installed' : 'Launch application with upgrade and test flags'}
+          aria-label="Upgrade"
+        >
+          <ArrowUpCircle size={16} aria-hidden="true" />
+        </button>
         <button
           className="icon-btn action-btn"
           onClick={() => {
@@ -1383,34 +1409,6 @@ export function App() {
               }}
             />
             Public
-          </label>
-
-          <label className="form-label" title="Upgrade SD.Next on the next startup">
-            <input
-              className="form-input"
-              type="checkbox"
-              checked={config.upgrade}
-              onChange={(e) => {
-                const next = { ...config, upgrade: e.target.checked };
-                setConfig(next);
-                debouncedSaveConfig(next);
-              }}
-            />
-            Upgrade
-          </label>
-
-          <label className="form-label" title="Use UV parallel installer">
-            <input
-              className="form-input"
-              type="checkbox"
-              checked={config.useUv}
-              onChange={(e) => {
-                const next = { ...config, useUv: e.target.checked };
-                setConfig(next);
-                debouncedSaveConfig(next);
-              }}
-            />
-            UV
           </label>
 
           <label className="form-label">

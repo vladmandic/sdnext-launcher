@@ -35,10 +35,18 @@ export function getToolVersions(
   // Attempt to get git version
   const gitResult = spawnSync(gitExe, ['--version'], { encoding: 'utf8', windowsHide: true });
   if (gitResult.error) {
-    const gitError = `Git not found or not executable\nCommand: ${gitExe} --version\nError: ${gitResult.error.message}\n`;
-    debugLog('tool-version', gitError);
-    if (onError) {
-      onError(gitError);
+    const gitErrorObj = gitResult.error as NodeJS.ErrnoException;
+    if (gitErrorObj.code === 'ENOENT') {
+      const gitError = `Please run bootstrap: Git not found\n`;
+      if (onError) {
+        onError(gitError);
+      }
+    } else {
+      const gitError = `Git not executable: ${gitExe}\nError: ${gitErrorObj.message}\n`;
+      debugLog('tool-version', gitError);
+      if (onError) {
+        onError(gitError);
+      }
     }
   } else if (gitResult.status === 0) {
     gitOk = true;
@@ -54,10 +62,18 @@ export function getToolVersions(
   // Attempt to get python version
   const pyResult = spawnSync(pythonExe, ['--version'], { encoding: 'utf8', windowsHide: true });
   if (pyResult.error) {
-    const pythonError = `Python not found or not executable\nCommand: ${pythonExe} --version\nError: ${pyResult.error.message}\n`;
-    debugLog('tool-version', pythonError);
-    if (onError) {
-      onError(pythonError);
+    const pythonErrorObj = pyResult.error as NodeJS.ErrnoException;
+    if (pythonErrorObj.code === 'ENOENT') {
+      const pythonError = `Please run bootstrap: Python not found\n`;
+      if (onError) {
+        onError(pythonError);
+      }
+    } else {
+      const pythonError = `Python not executable: ${pythonExe}\nError: ${pythonErrorObj.message}\n`;
+      debugLog('tool-version', pythonError);
+      if (onError) {
+        onError(pythonError);
+      }
     }
   } else if (pyResult.status === 0) {
     pythonOk = true;

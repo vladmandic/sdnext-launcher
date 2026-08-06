@@ -11,7 +11,7 @@ export type InstallationCheckpoint =
   | 'sandbox-test-passed'
   | 'complete';
 
-interface CheckpointData {
+export interface CheckpointData {
   installationPath: string;
   timestamp: string;
   completedSteps: InstallationCheckpoint[];

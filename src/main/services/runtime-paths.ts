@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { app } from 'electron';
+import { debugLog } from './debug';
 
 function getExecutableDir(): string {
   if (process.env.PORTABLE_EXECUTABLE_DIR) {
@@ -71,17 +72,30 @@ export function getBundledGitZipPath(): string {
 }
 
 export function getBundledPythonZipPath(): string {
-  return path.join(getPortableBaseDir(), 'python-3.13.12.zip');
+  return path.join(getPortableBaseDir(), 'python-3.12.10.zip');
 }
 
 function getExecutableExtension(): string {
   return process.platform === 'win32' ? '.exe' : '';
 }
 
+function normalizePathIfUnderCwd(resolvedPath: string): string {
+  if (!path.isAbsolute(resolvedPath)) {
+    return resolvedPath;
+  }
+
+  const relativePath = path.relative(process.cwd(), resolvedPath);
+  if (relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
+    return relativePath;
+  }
+
+  return resolvedPath;
+}
+
 export function getPrimaryGitExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
   const base = getBinaryPath(installationPath);
-  return path.join(base, 'git', `git${ext}`);
+  return normalizePathIfUnderCwd(path.join(base, 'git', `git${ext}`));
 }
 
 export function getFallbackGitExecutablePath(installationPath?: string): string {
@@ -97,7 +111,7 @@ export function getFallbackGitExecutablePath(installationPath?: string): string 
 export function getPrimaryPythonExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
   const base = getBinaryPath(installationPath);
-  return path.join(base, 'python', `python${ext}`);
+  return normalizePathIfUnderCwd(path.join(base, 'python', `python${ext}`));
 }
 
 export function getFallbackPythonExecutablePath(installationPath?: string): string {
@@ -109,31 +123,52 @@ export function getFallbackPythonExecutablePath(installationPath?: string): stri
 export function getGitExecutablePath(installationPath?: string): string {
   const primary = getPrimaryGitExecutablePath(installationPath);
   const fallback = getFallbackGitExecutablePath(installationPath);
-  return fs.existsSync(primary) ? primary : fallback;
+  const resolved = fs.existsSync(primary) ? primary : fallback;
+  debugLog('runtime-paths', 'Resolved Git executable', {
+    installationPath,
+    primary,
+    fallback,
+    resolved,
+  });
+  return resolved;
 }
 
 export function getPythonExecutablePath(installationPath?: string): string {
   // First try portable Python (Windows only)
   const primary = getPrimaryPythonExecutablePath(installationPath);
   if (fs.existsSync(primary)) {
+    debugLog('runtime-paths', 'Resolved Python executable from primary portable path', {
+      installationPath,
+      primary,
+    });
     return primary;
   }
   
   const fallbackPortable = getFallbackPythonExecutablePath(installationPath);
   if (fs.existsSync(fallbackPortable)) {
+    debugLog('runtime-paths', 'Resolved Python executable from fallback portable path', {
+      installationPath,
+      fallbackPortable,
+    });
     return fallbackPortable;
   }
   
   // On non-Windows or if portable not available, try environment variable or system python
   if (process.env.PYTHON) {
+    debugLog('runtime-paths', 'Resolved Python executable from PYTHON env', {
+      installationPath,
+      env: process.env.PYTHON,
+    });
     return process.env.PYTHON;
   }
   
   // Fallback to system python
-  if (process.platform === 'win32') {
-    return 'python.exe';
-  }
-  return 'python3';
+  const systemPython = process.platform === 'win32' ? 'python.exe' : 'python3';
+  debugLog('runtime-paths', 'Resolved Python executable to system default', {
+    installationPath,
+    systemPython,
+  });
+  return systemPython;
 }
 
 export function isBootstrapAvailable(): boolean {

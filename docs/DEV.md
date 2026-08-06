@@ -211,7 +211,7 @@ System Git/Python installations are intentionally ignored.
 - **npm 10+** — `npm --version`
 - Two zip files in `/portable`:
   - `nuget-git-2.53.0.zip`
-  - `python-3.13.12.zip`
+  - `python-3.12.10.zip`
 
 ### Installation
 

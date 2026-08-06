@@ -251,7 +251,8 @@ export async function ensurePortableRuntimes(forceExtraction = false, installati
   // Portable runtimes are only available on Windows
   if (process.platform !== 'win32') {
     debugLog('bootstrap', 'Portable runtimes not available on non-Windows platforms');
-    throw new Error('Portable runtimes are only available on Windows. Please use system git and python.');
+    debugLog('bootstrap', 'Switching to system git and python');
+    // throw new Error('Portable runtimes are only available on Windows. Please use system git and python.');
   }
   
   const primaryGit = getPrimaryGitExecutablePath(installationPath);
