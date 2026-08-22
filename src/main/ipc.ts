@@ -615,6 +615,7 @@ export function registerIpc(window: BrowserWindow): void {
           }
         },
         payload.terminalDimensions,
+        payload.options,
       );
       debugLog('ipc', '[LAUNCH] Launch workflow completed', { code });
       debugTimerEnd(timerId);
