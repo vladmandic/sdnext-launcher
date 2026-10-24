@@ -842,7 +842,7 @@ export function registerIpc(window: BrowserWindow): void {
       // Get git commit hash (short)
       try {
         const gitExe = getGitExecutablePath(payload.installationPath);
-        const commitHash = execSync(`${gitExe} rev-parse --short HEAD`, {
+        const commitHash = execSync(`"${gitExe}" rev-parse --short HEAD`, {
           cwd: appDir,
           encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'ignore'],
@@ -855,7 +855,7 @@ export function registerIpc(window: BrowserWindow): void {
       // Get git branch
       try {
         const gitExe = getGitExecutablePath(payload.installationPath);
-        const branch = execSync(`${gitExe} rev-parse --abbrev-ref HEAD`, {
+        const branch = execSync(`"${gitExe}" rev-parse --abbrev-ref HEAD`, {
           cwd: appDir,
           encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'ignore'],
