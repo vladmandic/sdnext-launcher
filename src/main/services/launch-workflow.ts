@@ -5,7 +5,7 @@ import { ProcessRunner } from './process-runner';
 import { getVenvPythonPath } from './venv-service';
 import { ensurePortableRuntimes } from './portable-bootstrap';
 import { debugLog } from './debug';
-import { splitParameters, buildProcessEnvironment, runGit, getCurrentBranch } from './workflow-common';
+import { splitParameters, buildProcessEnvironment, checkoutBranch, getCurrentBranch } from './workflow-common';
 import { getPythonCrashDetails } from './crash-service';
 
 export async function runLaunchWorkflow(
@@ -38,7 +38,7 @@ export async function runLaunchWorkflow(
   } else {
     onOutput(`[git] Checking out branch ${config.repositoryBranch}\n`);
     debugLog('launch', 'Checking out branch', { branch: config.repositoryBranch, currentBranch: currentBranch ?? 'unknown' });
-    runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput, config.installationPath);
+    checkoutBranch(appPath, config.repositoryBranch, onOutput, config.installationPath);
   }
 
   const args = ['launch.py', '--log', 'sdnext.log', '--models-dir', config.modelsPath];

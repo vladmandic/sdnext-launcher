@@ -6,7 +6,7 @@ import { ensureVenv, getVenvPythonPath } from './venv-service';
 import { getPythonExecutablePath } from './runtime-paths';
 import { ensurePortableRuntimes } from './portable-bootstrap';
 import { debugLog } from './debug';
-import { toBackendArgs, splitParameters, buildProcessEnvironment, runGit, runGitWithRetry, getCurrentBranch } from './workflow-common';
+import { toBackendArgs, splitParameters, buildProcessEnvironment, checkoutBranch, runGit, runGitWithRetry, getCurrentBranch } from './workflow-common';
 import { getCheckpointService, InstallationCheckpoint, CheckpointData } from './checkpoint-service';
 import { runSandboxTest } from './sandbox-test-service';
 import { getPythonCrashDetails } from './crash-service';
@@ -151,7 +151,7 @@ export async function runInstallWorkflow(
       } else {
         onOutput(`[git] Checking out branch ${config.repositoryBranch}\n`);
         debugLog('install', 'Checking out branch', { branch: config.repositoryBranch });
-        runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput, config.installationPath);
+        checkoutBranch(appPath, config.repositoryBranch, onOutput, config.installationPath);
       }
       checkpoint = checkpointSvc.markStepCompleted(checkpoint, 'git-checkout');
     } else {

@@ -149,6 +149,60 @@ export function runGit(
   }
 }
 
+export function checkoutBranch(
+  repoPath: string,
+  branch: string,
+  onOutput: (text: string, isError?: boolean) => void,
+  installationPath?: string,
+): void {
+  const gitExe = getGitExecutablePath(installationPath);
+  const localBranch = spawnSync(gitExe, [
+    '-C', repoPath, 'show-ref', '--verify', '--quiet', `refs/heads/${branch}`,
+  ], {
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+
+  if (localBranch.error) {
+    throw localBranch.error;
+  }
+  if (localBranch.status === 0) {
+    runGit(['-C', repoPath, 'checkout', branch], onOutput, installationPath);
+    return;
+  }
+  if (localBranch.status !== 1) {
+    throw new Error(`Git command failed: -C ${repoPath} show-ref --verify --quiet refs/heads/${branch}`);
+  }
+
+  const fetchRefspec = `+refs/heads/${branch}:refs/remotes/origin/${branch}`;
+  const configuredFetchRefspecs = spawnSync(gitExe, [
+    '-C', repoPath, 'config', '--get-all', 'remote.origin.fetch',
+  ], {
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  if (configuredFetchRefspecs.error) {
+    throw configuredFetchRefspecs.error;
+  }
+  if (configuredFetchRefspecs.status !== 0 && configuredFetchRefspecs.status !== 1) {
+    throw new Error(`Git command failed: -C ${repoPath} config --get-all remote.origin.fetch`);
+  }
+  const hasFetchRefspec = (configuredFetchRefspecs.stdout ?? '').split(/\r?\n/).some((refspec) => {
+    const normalized = refspec.startsWith('+') ? refspec.slice(1) : refspec;
+    return normalized === `refs/heads/${branch}:refs/remotes/origin/${branch}`
+      || normalized === 'refs/heads/*:refs/remotes/origin/*';
+  });
+  if (!hasFetchRefspec) {
+    runGit(['-C', repoPath, 'config', '--add', 'remote.origin.fetch', fetchRefspec], onOutput, installationPath);
+  }
+
+  onOutput(`[git] Branch ${branch} is not available locally; fetching from origin\n`);
+  runGit([
+    '-C', repoPath, 'fetch', '--depth', '1', 'origin', fetchRefspec,
+  ], onOutput, installationPath);
+  runGit(['-C', repoPath, 'checkout', '--track', '-b', branch, `origin/${branch}`], onOutput, installationPath);
+}
+
 /**
  * Run a git command with exponential backoff retry logic
  * @param args Git command arguments
