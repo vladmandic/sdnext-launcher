@@ -1,3 +1,4 @@
+2026-11-16 11:25: [Fix] [Git] Force branch checkout to discard local changes that block switching.
 2026-11-16 10:27: [Fix] [UI] Report upgrade/test completion, verify the installed commit, and refresh version information.
 2026-11-16 10:09: [Fix] [Git] Fetch configured branches from origin when no local branch exists, allowing switching to dev on shallow clones.
 2026-11-16 09:58: [Build] [Packaging] Declare pnpm@11.24.0 in the root manifest to silence workspace package-manager detection warning.

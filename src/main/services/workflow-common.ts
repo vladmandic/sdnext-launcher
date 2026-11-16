@@ -149,6 +149,16 @@ export function runGit(
   }
 }
 
+function checkoutBranchDiscardingChanges(
+  branch: string,
+  repoPath: string,
+  onOutput: (text: string, isError?: boolean) => void,
+  installationPath?: string,
+): void {
+  onOutput(`[git] Discarding local changes before switching to ${branch}\n`);
+  runGit(['-C', repoPath, 'checkout', '--force', branch], onOutput, installationPath);
+}
+
 export function checkoutBranch(
   repoPath: string,
   branch: string,
@@ -167,7 +177,7 @@ export function checkoutBranch(
     throw localBranch.error;
   }
   if (localBranch.status === 0) {
-    runGit(['-C', repoPath, 'checkout', branch], onOutput, installationPath);
+    checkoutBranchDiscardingChanges(branch, repoPath, onOutput, installationPath);
     return;
   }
   if (localBranch.status !== 1) {
@@ -200,7 +210,8 @@ export function checkoutBranch(
   runGit([
     '-C', repoPath, 'fetch', '--depth', '1', 'origin', fetchRefspec,
   ], onOutput, installationPath);
-  runGit(['-C', repoPath, 'checkout', '--track', '-b', branch, `origin/${branch}`], onOutput, installationPath);
+  runGit(['-C', repoPath, 'branch', '--track', branch, `origin/${branch}`], onOutput, installationPath);
+  checkoutBranchDiscardingChanges(branch, repoPath, onOutput, installationPath);
 }
 
 /**
