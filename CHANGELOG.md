@@ -1,3 +1,4 @@
+2026-11-16 11:45: [Fix] [Launch] Detect `Server: ready` as an SD.Next server-ready marker.
 2026-11-16 11:25: [Fix] [Git] Force branch checkout to discard local changes that block switching.
 2026-11-16 10:27: [Fix] [UI] Report upgrade/test completion, verify the installed commit, and refresh version information.
 2026-11-16 10:09: [Fix] [Git] Fetch configured branches from origin when no local branch exists, allowing switching to dev on shallow clones.

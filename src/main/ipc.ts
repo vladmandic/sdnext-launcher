@@ -608,7 +608,7 @@ export function registerIpc(window: BrowserWindow): void {
             setStatus(STATUS.LAUNCHING as UiStatus);
           }
 
-          if (/startup\s*time/.test(startupTimeBuffer)) {
+          if (/startup\s*time|server:\s*ready/.test(startupTimeBuffer)) {
             readyStatusEmitted = true;
             debugLog('ipc', '[LAUNCH] Startup marker detected, setting Ready status');
             setStatus(STATUS.READY as UiStatus);
