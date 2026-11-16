@@ -852,7 +852,28 @@ export function App() {
       const effectiveConfig = config.backend === 'autodetect' 
         ? { ...config, backend: startup.recommendedBackend }
         : config;
-      await window.sdnext.launch(effectiveConfig, terminalDimensions, { upgradeAndTest: true });
+      const previousCommit = versionInfo.commitHash;
+      const result = await window.sdnext.launch(effectiveConfig, terminalDimensions, { upgradeAndTest: true });
+      const updatedVersion = await window.sdnext.getVersionInfo(config.installationPath);
+      setVersionInfo(updatedVersion);
+      await refreshStartup();
+      void fetchVersionInfo(config.installationPath, true);
+
+      let message: string;
+      if (!result.success) {
+        message = `Upgrade/test failed with exit code ${result.code}.`;
+        toast.error(message);
+      } else if (previousCommit !== 'N/A' && updatedVersion.commitHash !== 'N/A') {
+        message = previousCommit === updatedVersion.commitHash
+          ? `Upgrade/test completed successfully; no commit change detected (${updatedVersion.commitHash}).`
+          : `SD.Next updated: ${previousCommit} -> ${updatedVersion.commitHash}.`;
+        toast.info(message);
+      } else {
+        message = 'Upgrade/test completed successfully; the commit change could not be verified.';
+        toast.success(message);
+      }
+
+      setTerminalLines((prev) => appendTerminalChunk(prev, `\n[upgrade] ${message}\n`));
     } finally {
       setActiveAction((prev) => (prev === 'upgrade' ? 'idle' : prev));
     }
@@ -1275,7 +1296,7 @@ export function App() {
           className={`icon-btn action-btn ${activeAction === 'upgrade' ? 'is-running' : ''}`}
           onClick={upgradeLaunch} 
           disabled={busy || isInitializing || !bootstrapComplete || !startup.installed}
-          title={!bootstrapComplete ? 'Upgrade: Install required first' : !startup.installed ? 'Upgrade: Not installed' : 'Launch application with upgrade and test flags'}
+          title={!bootstrapComplete ? 'Upgrade: Install required first' : !startup.installed ? 'Upgrade: Not installed' : 'Upgrade SD.Next and run tests'}
           aria-label="Upgrade"
         >
           <ArrowUpCircle size={16} aria-hidden="true" />
