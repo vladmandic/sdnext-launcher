@@ -79,23 +79,12 @@ function getExecutableExtension(): string {
   return process.platform === 'win32' ? '.exe' : '';
 }
 
-function normalizePathIfUnderCwd(resolvedPath: string): string {
-  if (!path.isAbsolute(resolvedPath)) {
-    return resolvedPath;
-  }
-
-  const relativePath = path.relative(process.cwd(), resolvedPath);
-  if (relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
-    return relativePath;
-  }
-
-  return resolvedPath;
-}
-
+// Runtime executables are always resolved to absolute paths because callers may
+// spawn them with a different working directory (e.g. venv creation uses installationPath).
 export function getPrimaryGitExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
   const base = getBinaryPath(installationPath);
-  return normalizePathIfUnderCwd(path.join(base, 'git', `git${ext}`));
+  return path.join(base, 'git', `git${ext}`);
 }
 
 export function getFallbackGitExecutablePath(installationPath?: string): string {
@@ -111,7 +100,7 @@ export function getFallbackGitExecutablePath(installationPath?: string): string 
 export function getPrimaryPythonExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
   const base = getBinaryPath(installationPath);
-  return normalizePathIfUnderCwd(path.join(base, 'python', `python${ext}`));
+  return path.join(base, 'python', `python${ext}`);
 }
 
 export function getFallbackPythonExecutablePath(installationPath?: string): string {

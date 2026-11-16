@@ -1,3 +1,4 @@
+2026-10-24 19:25: [Fix] [Main] Return absolute paths for portable git/python executables so venv creation no longer fails with spawnSync ENOENT when the installation directory is inside the launcher working directory.
 2026-08-22 00:00: [Fix] [Main] Forward update launch options so the update button starts app with upgrade/test flags, not normal launch flags.
 2026-03-09 16:00: [Fix] [Main] Corrected renderer HTML path when packaged to respect app.getAppPath() (avoids ERR_FILE_NOT_FOUND on manual exe startup)
 2026-03-09 16:15: [UI] Do not style bootstrap-required notice as an error; message no longer prefixed with "Error:" and renderer ignores it for red colouring.
