@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import type { SdNextConfig, InstallOptions } from '../../shared/types';
 import { validateEnvVarName } from '../../shared/types';
 import { getGitExecutablePath, getPythonExecutablePath } from './runtime-paths';
+import { debugLog } from './debug';
 
 /**
  * Convert compute backend option to launch.py command-line arguments
@@ -208,13 +210,101 @@ export function getCurrentBranch(repoPath: string, installationPath?: string): s
   return null;
 }
 
+function initializeVisualStudioEnvironment(env: NodeJS.ProcessEnv): { env: NodeJS.ProcessEnv; warning?: string } {
+  if (process.platform !== 'win32') {
+    return { env };
+  }
+
+  const installerDir = path.join(
+    process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)',
+    'Microsoft Visual Studio',
+    'Installer',
+  );
+  const vswherePath = path.join(installerDir, 'vswhere.exe');
+  if (!fs.existsSync(vswherePath)) {
+    debugLog('build-tools', 'Visual Studio Installer vswhere.exe was not found');
+    return { env };
+  }
+
+  const discovery = spawnSync(vswherePath, [
+    '-latest',
+    '-products',
+    '*',
+    '-requires',
+    'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+    '-property',
+    'installationPath',
+  ], {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 10000,
+  });
+  const installationPath = discovery.status === 0 ? discovery.stdout?.trim() : '';
+  if (!installationPath) {
+    debugLog('build-tools', 'No Visual Studio C++ build tools installation was found', {
+      error: discovery.error?.message,
+      status: discovery.status,
+    });
+    return { env };
+  }
+
+  const vcvarsallPath = path.join(installationPath, 'VC', 'Auxiliary', 'Build', 'vcvarsall.bat');
+  if (!fs.existsSync(vcvarsallPath)) {
+    const warning = `Visual Studio was found at "${installationPath}", but vcvarsall.bat is missing.`;
+    debugLog('build-tools', warning);
+    return { env, warning };
+  }
+
+  const command = `chcp 65001 >nul && call "${vcvarsallPath}" amd64 >nul && set`;
+  const initialized = spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', command], {
+    env,
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 30000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  if (initialized.status !== 0 || !initialized.stdout) {
+    const warning = `Failed to initialize the Visual Studio C++ build environment${initialized.error ? `: ${initialized.error.message}` : ` (exit code ${initialized.status})`}.`;
+    debugLog('build-tools', warning, { installationPath });
+    return { env, warning };
+  }
+
+  const variables = new Map<string, { key: string; value: string }>();
+  for (const [key, value] of Object.entries(env)) {
+    variables.set(key.toUpperCase(), { key, value: value ?? '' });
+  }
+  for (const line of initialized.stdout.split(/\r?\n/)) {
+    const separator = line.indexOf('=');
+    if (separator <= 0) {
+      continue;
+    }
+
+    const key = line.slice(0, separator);
+    variables.set(key.toUpperCase(), {
+      key: variables.get(key.toUpperCase())?.key ?? key,
+      value: line.slice(separator + 1),
+    });
+  }
+
+  const initializedEnv: NodeJS.ProcessEnv = {};
+  for (const { key, value } of variables.values()) {
+    initializedEnv[key] = value;
+  }
+  debugLog('build-tools', 'Initialized Visual Studio C++ build environment', { installationPath });
+  return { env: initializedEnv };
+}
+
 /**
  * Build process environment for workflow execution
  * Merges custom environment variables and ensures Git/Python in PATH
  * @param config Configuration including customEnvironment field
+ * @param onOutput Optional callback for build environment warnings
  * @returns NodeJS ProcessEnv suitable for process execution
  */
-export function buildProcessEnvironment(config: SdNextConfig): NodeJS.ProcessEnv {
+export function buildProcessEnvironment(
+  config: SdNextConfig,
+  onOutput?: (text: string, isError?: boolean) => void,
+): NodeJS.ProcessEnv {
   const extraEnv = parseCustomEnvironment(config.customEnvironment);
   const baseEnv = { ...process.env, ...extraEnv };
 
@@ -231,5 +321,9 @@ export function buildProcessEnvironment(config: SdNextConfig): NodeJS.ProcessEnv
   // Mark python child processes as launched by this Electron launcher.
   baseEnv.SD_LAUNCHER = 'true';
 
-  return baseEnv;
+  const buildTools = initializeVisualStudioEnvironment(baseEnv);
+  if (buildTools.warning) {
+    onOutput?.(`[build-tools] ${buildTools.warning}\n`, true);
+  }
+  return buildTools.env;
 }

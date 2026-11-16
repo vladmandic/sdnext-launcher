@@ -201,7 +201,7 @@ export async function runInstallWorkflow(
         command: venvPython,
         args,
         cwd: appPath,
-        env: buildProcessEnvironment(config),
+        env: buildProcessEnvironment(config, onOutput),
         logFilePath: path.join(appPath, 'install.log'),
         onOutput,
         terminalCols: terminalDimensions?.cols,
