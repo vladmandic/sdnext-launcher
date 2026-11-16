@@ -1,6 +1,7 @@
 {
   "name": "sdnext-launcher",
   "version": "0.1.7",
+  "packageManager": "pnpm@11.24.0",
   "description": "SD.Next Windows installer and launcher",
   "main": "dist/electron/main/main.js",
   "author": "vladmandic",

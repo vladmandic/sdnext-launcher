@@ -1,3 +1,4 @@
+2026-11-16 09:58: [Build] [Packaging] Declare pnpm@11.24.0 in the root manifest to silence workspace package-manager detection warning.
 2026-10-24 19:45: [Launch] Autodetect VS build tools presence and initialize environment on launch.
 2026-10-24 19:25: [Fix] [Main] Return absolute paths for portable git/python executables so venv creation no longer fails with spawnSync ENOENT when the installation directory is inside the launcher working directory.
 2026-08-22 00:00: [Fix] [Main] Forward update launch options so the update button starts app with upgrade/test flags, not normal launch flags.
